@@ -1,6 +1,6 @@
 from sqlalchemy import text, insert
-from app.models import User, metadata_obj
-from app.auth.database import sync_engine, async_engine, session_factory, Base
+from models import User, metadata_obj
+from auth.database import sync_engine, async_engine, session_factory, Base
 
 def create_tables():
     sync_engine.echo = True

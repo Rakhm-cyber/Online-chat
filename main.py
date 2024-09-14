@@ -6,20 +6,20 @@ from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from datetime import datetime, timedelta
-from models import User
-from auth.database import session_factory
+from app.models import User
+from app.auth.database import session_factory
+from app.auth.config import settings
 
-# Создаем приложение
+
 app = FastAPI()
 
-# Подключение статики
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # Настройка шаблонов
 templates = Jinja2Templates(directory="app/templates")
 
 # Конфигурация безопасности
-SECRET_KEY = "your_secret_key"  # Замените на свой секретный ключ
+SECRET_KEY = settings.SECRET_KEY# Замените на свой секретный ключ
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
@@ -125,7 +125,3 @@ async def read_welcome(token: str = Depends(oauth2_scheme)):
     </body>
     </html>
     """, status_code=200)
-
-
-
-
