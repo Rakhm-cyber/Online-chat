@@ -11,8 +11,8 @@
     <div id="wrapper">
         <!-- Форма для входа -->
         <form id="loginForm" method="POST" autocomplete="off">
-            <input type="text" id="username" name="username" placeholder="username" required />
-            <input type="password" id="password" name="password" placeholder="password" required />
+            <input type="email" id="email" name="username" placeholder="Email" required />
+            <input type="password" id="password" name="password" placeholder="Password" required />
             <div class="buttons">
                 <button type="submit" class="btn">Войти</button>
             </div>
@@ -20,8 +20,9 @@
 
         <!-- Форма для регистрации -->
         <form id="signinForm" method="POST" action="/register" autocomplete="off">
-            <input type="text" id="user" name="user" placeholder="username" required />
-            <input type="password" id="password" name="password" placeholder="password" required />
+            <input type="text" id="user" name="user" placeholder="Username" required />
+            <input type="email" id="email" name="email" placeholder="Email" required />
+            <input type="password" id="password" name="password" placeholder="Password" required />
             <div class="buttons">
                 <button type="submit" class="btn">Зарегистрироваться</button>
             </div>
@@ -43,7 +44,6 @@
                 const result = await response.json();
                 localStorage.setItem("token", result.access_token);
 
-                // Используем полученный токен для перехода на защищенную страницу
                 const welcomeResponse = await fetch('/welcome', {
                     headers: {
                         'Authorization': `Bearer ${result.access_token}`
@@ -62,5 +62,6 @@
     </script>
 </body>
 </html>
+
 
 

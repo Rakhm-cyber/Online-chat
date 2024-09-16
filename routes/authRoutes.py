@@ -43,17 +43,22 @@ def create_access_token(data: dict, expires_delta: timedelta = None):
 
 # Маршрут для регистрации
 @router.post("/register")
-async def register_user(user: str = Form(...), password: str = Form(...)):
+async def register_user(user: str = Form(...), email: str = Form(...), password: str = Form(...)):
     if len(user) < 5 or len(password) < 5:
         raise HTTPException(status_code=400, detail="Username and password must be at least 5 characters long")
 
     with session_factory() as session:
         existing_user = session.query(User).filter(User.username == user).first()
+        existing_email = session.query(User).filter(User.email == email).first()
+
         if existing_user:
             raise HTTPException(status_code=400, detail="Username already exists")
 
+        if existing_email:
+            raise HTTPException(status_code=400, detail="Email already exists")
+
         hashed_password = get_password_hash(password)
-        new_user = User(username=user, password=hashed_password)
+        new_user = User(username=user, email=email, password=hashed_password)
         session.add(new_user)
         session.commit()
 
@@ -64,18 +69,22 @@ async def register_user(user: str = Form(...), password: str = Form(...)):
 @router.post("/token")
 async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()):
     with session_factory() as session:
-        user = session.query(User).filter(User.username == form_data.username).first()
+        user = session.query(User).filter(User.email == form_data.username).first()
+
         if not user or not verify_password(form_data.password, user.password):
             raise HTTPException(
                 status_code=400,
-                detail="Incorrect username or password",
+                detail="Incorrect email or password",
                 headers={"WWW-Authenticate": "Bearer"},
             )
+
         access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+        # Добавляем и имя пользователя, и email в токен
         access_token = create_access_token(
-            data={"sub": user.username}, expires_delta=access_token_expires
+            data={"sub": user.username, "email": user.email}, expires_delta=access_token_expires
         )
         return {"access_token": access_token, "token_type": "bearer"}
+
 
 
 # Защищенный маршрут
@@ -83,8 +92,9 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
 async def read_welcome(token: str = Depends(oauth2_scheme)):
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        username: str = payload.get("sub")
-        if username is None:
+        username: str = payload.get("sub")  # Извлекаем имя пользователя
+        email: str = payload.get("email")  # Извлекаем email
+        if username is None or email is None:
             raise HTTPException(status_code=401, detail="Invalid credentials")
     except JWTError:
         raise HTTPException(status_code=401, detail="Invalid credentials")
@@ -114,3 +124,4 @@ async def read_welcome(token: str = Depends(oauth2_scheme)):
     </body>
     </html>
     """, status_code=200)
+
