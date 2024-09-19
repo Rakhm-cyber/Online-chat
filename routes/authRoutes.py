@@ -1,3 +1,4 @@
+from tasks.tasks import send_email_report_dashboard
 from fastapi import APIRouter, Form, Depends, HTTPException
 from fastapi.responses import RedirectResponse, HTMLResponse
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
@@ -8,40 +9,27 @@ from app.models import User
 from app.auth.database import session_factory
 from app.auth.config import settings
 
-# Инициализация роутера
 router = APIRouter()
 
-# Конфигурация безопасности
 SECRET_KEY = settings.SECRET_KEY
 ALGORITHM = settings.ALGORITHM
 ACCESS_TOKEN_EXPIRE_MINUTES = settings.ACCESS_TOKEN_EXPIRE_MINUTES
 
-# Настройка для работы с паролями
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
-# Задаем схему авторизации
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
-
-# Функция для создания хэша пароля
 def get_password_hash(password):
     return pwd_context.hash(password)
 
-
-# Функция для проверки пароля
 def verify_password(plain_password, hashed_password):
     return pwd_context.verify(plain_password, hashed_password)
 
-
-# Функция для генерации JWT токена
 def create_access_token(data: dict, expires_delta: timedelta = None):
     to_encode = data.copy()
     expire = datetime.utcnow() + (expires_delta or timedelta(minutes=15))
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
-
-# Маршрут для регистрации
 @router.post("/register")
 async def register_user(user: str = Form(...), email: str = Form(...), password: str = Form(...)):
     if len(user) < 5 or len(password) < 5:
@@ -62,10 +50,11 @@ async def register_user(user: str = Form(...), email: str = Form(...), password:
         session.add(new_user)
         session.commit()
 
+        # Отправка приветственного письма
+        send_email_report_dashboard.delay(user, email)
+
     return RedirectResponse(url="/", status_code=303)
 
-
-# Маршрут для получения токена
 @router.post("/token")
 async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()):
     with session_factory() as session:
@@ -79,21 +68,17 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
             )
 
         access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-        # Добавляем и имя пользователя, и email в токен
         access_token = create_access_token(
             data={"sub": user.username, "email": user.email}, expires_delta=access_token_expires
         )
         return {"access_token": access_token, "token_type": "bearer"}
 
-
-
-# Защищенный маршрут
 @router.get("/welcome", response_class=HTMLResponse)
 async def read_welcome(token: str = Depends(oauth2_scheme)):
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        username: str = payload.get("sub")  # Извлекаем имя пользователя
-        email: str = payload.get("email")  # Извлекаем email
+        username: str = payload.get("sub")
+        email: str = payload.get("email")
         if username is None or email is None:
             raise HTTPException(status_code=401, detail="Invalid credentials")
     except JWTError:
@@ -124,4 +109,5 @@ async def read_welcome(token: str = Depends(oauth2_scheme)):
     </body>
     </html>
     """, status_code=200)
+
 
